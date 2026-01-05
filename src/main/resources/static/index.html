@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>問合せ先選択</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .search-section {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .accordion-header {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 15px;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .accordion-header:hover {
+            background-color: #0056b3;
+        }
+        
+        .accordion-content {
+            padding: 20px;
+            display: block;
+        }
+        
+        .accordion-content.collapsed {
+            display: none;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #495057;
+            font-weight: 500;
+        }
+        
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group input[type="text"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+        
+        .region-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .checkbox-item label {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-clear {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-clear:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-search {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-search:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-cancel {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-confirm {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-confirm:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        
+        .btn-confirm:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .results-section {
+            margin-bottom: 20px;
+        }
+        
+        .record-count {
+            margin-bottom: 10px;
+            color: #495057;
+            font-weight: 500;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+        
+        thead {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        th {
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        
+        th:hover {
+            background-color: #0056b3;
+        }
+        
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.5;
+        }
+        
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        input[type="checkbox"] {
+            cursor: pointer;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .url-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="pageTitle">問合せ先選択</h1>
+        
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="accordion-header" onclick="toggleAccordion()">
+                <span>検索条件</span>
+                <span id="accordionIcon">▼</span>
+            </div>
+            <div class="accordion-content" id="accordionContent">
+                <div class="form-group">
+                    <label for="txtRefNm">問合せ先名称</label>
+                    <input type="text" id="txtRefNm" placeholder="前方一致検索">
+                </div>
+                
+                <div class="form-group">
+                    <label for="txtRefKn">問合せ先名称カナ</label>
+                    <input type="text" id="txtRefKn" placeholder="前方一致検索">
+                </div>
+                
+                <div class="form-group">
+                    <label for="telno">電話番号</label>
+                    <input type="text" id="telno" placeholder="前方一致検索">
+                </div>
+                
+                <div class="form-group">
+                    <label for="urlAheadSearch">URL</label>
+                    <input type="text" id="urlAheadSearch" placeholder="部分一致検索">
+                </div>
+                
+                <div class="form-group">
+                    <label>地域</label>
+                    <div class="region-checkboxes" id="regionCheckboxes">
+                        <!-- Region checkboxes will be loaded dynamically -->
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-clear" onclick="clearSearch()">クリア</button>
+                    <button class="btn-search" onclick="searchInquiry()">検索</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div class="results-section">
+            <div class="record-count" id="recordCount">レコード件数: 0件</div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            </th>
+                            <th class="sortable" onclick="sortTable('inquiryDestinationCode')">問合せ先コード</th>
+                            <th class="sortable" onclick="sortTable('inquiryDestinationName')">問合せ先名称</th>
+                            <th class="sortable" onclick="sortTable('inquiryDestinationKana')">問合せ先名称カナ</th>
+                            <th class="sortable" onclick="sortTable('phoneNumber')">電話番号</th>
+                            <th class="sortable" onclick="sortTable('prefectureName')">都道府県</th>
+                            <th class="sortable" onclick="sortTable('regionName')">地域</th>
+                            <th class="sortable" onclick="sortTable('urlAddressesDisplay')">URL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                        <tr>
+                            <td colspan="8" class="loading">検索ボタンをクリックしてください</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn-cancel" onclick="cancelSelection()">キャンセル</button>
+            <button class="btn-confirm" id="confirmBtn" onclick="confirmSelection()" disabled>決定</button>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api/inquiry-destinations';
+        let currentResults = [];
+        let regions = [];
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadRegions();
+            
+            // Check if this is bulk selection mode
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mode') === 'bulk') {
+                document.getElementById('pageTitle').textContent = '問合せ先一括選択';
+            }
+        });
+        
+        // Load regions
+        async function loadRegions() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/regions`);
+                regions = await response.json();
+                
+                const container = document.getElementById('regionCheckboxes');
+                container.innerHTML = regions.map(region => `
+                    <div class="checkbox-item">
+                        <input type="checkbox" 
+                               id="region_${region.regionCode}" 
+                               value="${region.regionCode}"
+                               ${region.regionCode !== '99' ? 'checked' : ''}
+                               onchange="handleRegionChange('${region.regionCode}')">
+                        <label for="region_${region.regionCode}">${region.regionName}</label>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading regions:', error);
+            }
+        }
+        
+        // Handle region checkbox change
+        function handleRegionChange(regionCode) {
+            if (regionCode === '99') {
+                // If overseas is checked, uncheck all others
+                const checkbox = document.getElementById('region_99');
+                if (checkbox.checked) {
+                    regions.forEach(region => {
+                        if (region.regionCode !== '99') {
+                            document.getElementById(`region_${region.regionCode}`).checked = false;
+                        }
+                    });
+                }
+            } else {
+                // If any other region is checked, uncheck overseas
+                document.getElementById('region_99').checked = false;
+            }
+            updateConfirmButton();
+        }
+        
+        // Toggle accordion
+        function toggleAccordion() {
+            const content = document.getElementById('accordionContent');
+            const icon = document.getElementById('accordionIcon');
+            content.classList.toggle('collapsed');
+            icon.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+        }
+        
+        // Clear search
+        function clearSearch() {
+            document.getElementById('txtRefNm').value = '';
+            document.getElementById('txtRefKn').value = '';
+            document.getElementById('telno').value = '';
+            document.getElementById('urlAheadSearch').value = '';
+            
+            // Reset region checkboxes
+            regions.forEach(region => {
+                const checkbox = document.getElementById(`region_${region.regionCode}`);
+                checkbox.checked = region.regionCode !== '99';
+            });
+        }
+        
+        // Search inquiry destinations
+        async function searchInquiry() {
+            const selectedRegions = regions
+                .filter(region => document.getElementById(`region_${region.regionCode}`).checked)
+                .map(region => region.regionCode);
+            
+            const requestData = {
+                inquiryDestinationName: document.getElementById('txtRefNm').value || null,
+                inquiryDestinationKana: document.getElementById('txtRefKn').value || null,
+                phoneNumber: document.getElementById('telno').value || null,
+                urlAddress: document.getElementById('urlAheadSearch').value || null,
+                regionCodes: selectedRegions.length > 0 ? selectedRegions : null
+            };
+            
+            try {
+                const tbody = document.getElementById('resultsBody');
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">検索中...</td></tr>';
+                
+                const response = await fetch(`${API_BASE_URL}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                currentResults = data.inquiryDestinations || [];
+                
+                displayResults(currentResults);
+                updateRecordCount(data.totalCount || 0);
+            } catch (error) {
+                console.error('Error searching:', error);
+                const tbody = document.getElementById('resultsBody');
+                tbody.innerHTML = '<tr><td colspan="8" class="error-message">検索中にエラーが発生しました</td></tr>';
+            }
+        }
+        
+        // Display results
+        function displayResults(results) {
+            const tbody = document.getElementById('resultsBody');
+            
+            if (results.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">該当するデータがありません</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = results.map(item => `
+                <tr>
+                    <td><input type="checkbox" class="row-checkbox" value="${item.inquiryDestinationCode}" onchange="updateConfirmButton()"></td>
+                    <td>${item.inquiryDestinationCode || ''}</td>
+                    <td>${item.inquiryDestinationName || ''}</td>
+                    <td>${item.inquiryDestinationKana || ''}</td>
+                    <td>${item.phoneNumber || ''}</td>
+                    <td>${item.prefectureName || ''}</td>
+                    <td>${item.regionName || ''}</td>
+                    <td class="url-cell" title="${item.urlAddressesDisplay || ''}">${item.urlAddressesDisplay || ''}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // Update record count
+        function updateRecordCount(count) {
+            document.getElementById('recordCount').textContent = `レコード件数: ${count}件`;
+        }
+        
+        // Toggle select all
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            updateConfirmButton();
+        }
+        
+        // Update confirm button state
+        function updateConfirmButton() {
+            const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+            document.getElementById('confirmBtn').disabled = checkedBoxes.length === 0;
+            
+            // Update select all checkbox
+            const allCheckboxes = document.querySelectorAll('.row-checkbox');
+            const selectAll = document.getElementById('selectAll');
+            if (allCheckboxes.length > 0) {
+                selectAll.checked = checkedBoxes.length === allCheckboxes.length;
+            }
+        }
+        
+        // Sort table
+        let currentSortColumn = '';
+        let sortAscending = true;
+        
+        function sortTable(column) {
+            if (currentSortColumn === column) {
+                sortAscending = !sortAscending;
+            } else {
+                currentSortColumn = column;
+                sortAscending = true;
+            }
+            
+            currentResults.sort((a, b) => {
+                const aVal = a[column] || '';
+                const bVal = b[column] || '';
+                
+                if (sortAscending) {
+                    return aVal.localeCompare(bVal);
+                } else {
+                    return bVal.localeCompare(aVal);
+                }
+            });
+            
+            displayResults(currentResults);
+        }
+        
+        // Cancel selection
+        function cancelSelection() {
+            if (confirm('選択をキャンセルしますか？')) {
+                window.close();
+            }
+        }
+        
+        // Confirm selection
+        function confirmSelection() {
+            const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+            const selectedCodes = Array.from(checkedBoxes).map(cb => cb.value);
+            const selectedItems = currentResults.filter(item => 
+                selectedCodes.includes(item.inquiryDestinationCode)
+            );
+            
+            console.log('Selected items:', selectedItems);
+            alert(`${selectedItems.length}件の問合せ先を選択しました`);
+            
+            // In a real application, this would send data back to the parent window
+            // window.opener.postMessage({ selectedItems }, '*');
+            // window.close();
+        }
+    </script>
+</body>
+</html>

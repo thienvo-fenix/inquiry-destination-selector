@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: inquiry_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: inquiry_db
+      MYSQL_USER: inquiry_user
+      MYSQL_PASSWORD: inquiry_pass
+      TZ: Asia/Tokyo
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    networks:
+      - inquiry_network
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: inquiry_app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inquiry_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Tokyo&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: inquiry_user
+      SPRING_DATASOURCE_PASSWORD: inquiry_pass
+    depends_on:
+      - mysql
+    networks:
+      - inquiry_network
+
+volumes:
+  mysql_data:
+
+networks:
+  inquiry_network:
+    driver: bridge
