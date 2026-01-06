@@ -22,11 +22,23 @@ public class GetRegionsUseCase {
     private final RegionRepository regionRepository;
     
     /**
-     * Get all regions
-     * 全地域を取得
+     * Get Core regions that are not deleted (用途区分=Core地域、削除されていない)
+     * 表示用の地域を取得（Core地域のみ、削除フラグ=false、表示順でソート）
      */
     public List<RegionResponseDto> execute() {
-        List<Region> regions = regionRepository.findAll();
+        List<Region> regions = regionRepository.findCoreRegions();
+        
+        return regions.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get all active regions (not deleted)
+     * 全ての有効な地域を取得（削除フラグ=false）
+     */
+    public List<RegionResponseDto> executeAll() {
+        List<Region> regions = regionRepository.findActiveRegions();
         
         return regions.stream()
                 .map(this::convertToDto)

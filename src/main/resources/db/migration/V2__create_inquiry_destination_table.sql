@@ -3,13 +3,12 @@ CREATE TABLE IF NOT EXISTS inquiry_destination_master (
     inquiry_destination_code VARCHAR(20) PRIMARY KEY COMMENT '問合せ先コード',
     inquiry_destination_name VARCHAR(100) NOT NULL COMMENT '問合せ先名称',
     inquiry_destination_kana VARCHAR(200) NOT NULL COMMENT '問合せ先カナ',
-    phone_number VARCHAR(13) COMMENT '電話番号',
-    prefecture_code VARCHAR(10) NOT NULL COMMENT '都道府県コード',
+    phone_number VARCHAR(20) COMMENT '電話番号',
+    prefecture_code VARCHAR(10) COMMENT '都道府県コード',
     region_code VARCHAR(10) NOT NULL COMMENT '地域コード',
     address VARCHAR(500) COMMENT '住所',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
-    CONSTRAINT fk_inquiry_prefecture FOREIGN KEY (prefecture_code) REFERENCES prefecture_master(prefecture_code),
     CONSTRAINT fk_inquiry_region FOREIGN KEY (region_code) REFERENCES region_master(region_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='問合せ先マスタ';
 

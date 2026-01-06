@@ -12,4 +12,16 @@ import java.util.Optional;
 public interface RegionRepository {
     List<Region> findAll();
     Optional<Region> findByCode(String regionCode);
+    
+    /**
+     * Find Core regions that are not deleted, ordered by display order
+     * Core地域で削除されていない地域を表示順で取得
+     */
+    List<Region> findCoreRegions();
+    
+    /**
+     * Find all active regions (not deleted), ordered by display order
+     * 削除されていない全ての地域を表示順で取得
+     */
+    List<Region> findActiveRegions();
 }

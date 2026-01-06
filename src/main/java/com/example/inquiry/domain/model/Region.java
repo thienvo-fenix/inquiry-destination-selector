@@ -19,6 +19,12 @@ public class Region {
     private String regionCode;
     private String regionName;
     private Integer displayOrder;
+    private String usageClassification;
+    private Boolean isDeleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // Usage Classification Constants
+    public static final String USAGE_CORE = "CORE";
+    public static final String USAGE_OTHER = "OTHER";
 }

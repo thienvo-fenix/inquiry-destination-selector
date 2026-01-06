@@ -259,6 +259,21 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        
+        .input-error {
+            border-color: #dc3545 !important;
+            background-color: #fff5f5;
+        }
+        
+        .input-error:focus {
+            box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25) !important;
+        }
+        
+        .field-error-message {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -346,6 +361,18 @@
         const API_BASE_URL = 'http://localhost:8080/api/inquiry-destinations';
         let currentResults = [];
         let regions = [];
+        let isBulkMode = false;
+        
+        // Message constants (theo đặc tả)
+        const MESSAGES = {
+            SE4101_00040: '該当するデータがありません。検索条件を変更してください。',
+            SI4101_00063: '検索結果が80件を超えています。先頭の40件のみ表示します。続行しますか？',
+            SE4102_00166: '1件のみ選択してください。'
+        };
+        
+        // Max records constants
+        const MAX_DISPLAY_RECORDS = 40;
+        const CONFIRM_THRESHOLD = 80;
         
         // Initialize page
         document.addEventListener('DOMContentLoaded', async () => {
@@ -353,7 +380,8 @@
             
             // Check if this is bulk selection mode
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('mode') === 'bulk') {
+            isBulkMode = urlParams.get('mode') === 'bulk';
+            if (isBulkMode) {
                 document.getElementById('pageTitle').textContent = '問合せ先一括選択';
             }
         });
@@ -414,6 +442,9 @@
             document.getElementById('telno').value = '';
             document.getElementById('urlAheadSearch').value = '';
             
+            // Clear error messages
+            clearAllErrors();
+            
             // Reset region checkboxes
             regions.forEach(region => {
                 const checkbox = document.getElementById(`region_${region.regionCode}`);
@@ -421,8 +452,92 @@
             });
         }
         
+        // Validation functions
+        function validateInput() {
+            clearAllErrors();
+            let isValid = true;
+            let firstErrorField = null;
+            
+            // Validate 問合せ先名称 (check for invalid characters if needed)
+            const txtRefNm = document.getElementById('txtRefNm');
+            if (txtRefNm.value && !isValidSearchText(txtRefNm.value)) {
+                showFieldError(txtRefNm, '問合せ先名称に無効な文字が含まれています。');
+                isValid = false;
+                if (!firstErrorField) firstErrorField = txtRefNm;
+            }
+            
+            // Validate 問合せ先名称カナ (should be katakana only)
+            const txtRefKn = document.getElementById('txtRefKn');
+            if (txtRefKn.value && !isValidKana(txtRefKn.value)) {
+                showFieldError(txtRefKn, '問合せ先名称カナはカタカナで入力してください。');
+                isValid = false;
+                if (!firstErrorField) firstErrorField = txtRefKn;
+            }
+            
+            // Validate 電話番号 (should be numeric and hyphens only)
+            const telno = document.getElementById('telno');
+            if (telno.value && !isValidPhoneNumber(telno.value)) {
+                showFieldError(telno, '電話番号は数字とハイフンのみで入力してください。');
+                isValid = false;
+                if (!firstErrorField) firstErrorField = telno;
+            }
+            
+            // Focus on first error field
+            if (firstErrorField) {
+                firstErrorField.focus();
+            }
+            
+            return isValid;
+        }
+        
+        function isValidSearchText(text) {
+            // Allow general text input - can be customized based on requirements
+            return text.length <= 100; // Max length check
+        }
+        
+        function isValidKana(text) {
+            // Allow katakana, spaces, and common punctuation
+            const kanaRegex = /^[ァ-ヶー・　\s]*$/;
+            return kanaRegex.test(text);
+        }
+        
+        function isValidPhoneNumber(text) {
+            // Allow numbers and hyphens
+            const phoneRegex = /^[0-9\-]*$/;
+            return phoneRegex.test(text);
+        }
+        
+        function showFieldError(field, message) {
+            field.classList.add('input-error');
+            
+            // Create error message element
+            let errorDiv = field.parentElement.querySelector('.field-error-message');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.className = 'field-error-message';
+                field.parentElement.appendChild(errorDiv);
+            }
+            errorDiv.textContent = message;
+        }
+        
+        function clearAllErrors() {
+            // Remove error classes
+            document.querySelectorAll('.input-error').forEach(el => {
+                el.classList.remove('input-error');
+            });
+            
+            // Remove error messages
+            document.querySelectorAll('.field-error-message').forEach(el => {
+                el.remove();
+            });
+        }
+        
         // Search inquiry destinations
         async function searchInquiry() {
+            // Step 1: Validate input
+            if (!validateInput()) {
+                return;
+            }
             const selectedRegions = regions
                 .filter(region => document.getElementById(`region_${region.regionCode}`).checked)
                 .map(region => region.regionCode);
@@ -448,10 +563,29 @@
                 });
                 
                 const data = await response.json();
-                currentResults = data.inquiryDestinations || [];
+                const totalCount = data.totalCount || 0;
+                
+                // Step 2B: Check if no results (SE4101_00040)
+                if (totalCount === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="error-message">${MESSAGES.SE4101_00040}</td></tr>`;
+                    updateRecordCount(0);
+                    return;
+                }
+                
+                // Step 2C: Check if results > 80, show confirmation (SI4101_00063)
+                if (totalCount > CONFIRM_THRESHOLD) {
+                    const confirmContinue = confirm(MESSAGES.SI4101_00063);
+                    if (!confirmContinue) {
+                        tbody.innerHTML = '<tr><td colspan="8" class="loading">検索ボタンをクリックしてください</td></tr>';
+                        return;
+                    }
+                }
+                
+                // Step 3: Display results (limit to first 40 records)
+                currentResults = (data.inquiryDestinations || []).slice(0, MAX_DISPLAY_RECORDS);
                 
                 displayResults(currentResults);
-                updateRecordCount(data.totalCount || 0);
+                updateRecordCount(totalCount);
             } catch (error) {
                 console.error('Error searching:', error);
                 const tbody = document.getElementById('resultsBody');
@@ -547,16 +681,31 @@
         function confirmSelection() {
             const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
             const selectedCodes = Array.from(checkedBoxes).map(cb => cb.value);
+            
+            // Step 5(1): Validate selection count - if not bulk mode, only 1 item allowed
+            if (!isBulkMode && selectedCodes.length > 1) {
+                alert(MESSAGES.SE4102_00166);
+                return;
+            }
+            
             const selectedItems = currentResults.filter(item => 
                 selectedCodes.includes(item.inquiryDestinationCode)
             );
             
             console.log('Selected items:', selectedItems);
+            
+            // Step 5(2): Send data back to parent window
+            if (window.opener) {
+                window.opener.postMessage({ 
+                    type: 'INQUIRY_DESTINATION_SELECTED',
+                    selectedItems: selectedItems 
+                }, '*');
+            }
+            
             alert(`${selectedItems.length}件の問合せ先を選択しました`);
             
-            // In a real application, this would send data back to the parent window
-            // window.opener.postMessage({ selectedItems }, '*');
-            // window.close();
+            // Step 5(3): Close the panel/window
+            window.close();
         }
     </script>
 </body>

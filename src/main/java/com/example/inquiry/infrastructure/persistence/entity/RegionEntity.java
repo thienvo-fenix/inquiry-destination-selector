@@ -32,6 +32,12 @@ public class RegionEntity {
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
     
+    @Column(name = "usage_classification", nullable = false, length = 20)
+    private String usageClassification;
+    
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted;
+    
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

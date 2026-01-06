@@ -34,11 +34,27 @@ public class RegionRepositoryImpl implements RegionRepository {
                 .map(this::convertToDomain);
     }
     
+    @Override
+    public List<Region> findCoreRegions() {
+        return regionJpaRepository.findByUsageClassificationAndIsDeletedFalseOrderByDisplayOrderAsc(Region.USAGE_CORE).stream()
+                .map(this::convertToDomain)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<Region> findActiveRegions() {
+        return regionJpaRepository.findByIsDeletedFalseOrderByDisplayOrderAsc().stream()
+                .map(this::convertToDomain)
+                .collect(Collectors.toList());
+    }
+    
     private Region convertToDomain(RegionEntity entity) {
         return Region.builder()
                 .regionCode(entity.getRegionCode())
                 .regionName(entity.getRegionName())
                 .displayOrder(entity.getDisplayOrder())
+                .usageClassification(entity.getUsageClassification())
+                .isDeleted(entity.getIsDeleted())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
