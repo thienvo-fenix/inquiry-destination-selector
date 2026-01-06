@@ -5,6 +5,7 @@ import com.example.inquiry.application.dto.InquirySearchResponseDto;
 import com.example.inquiry.application.dto.RegionResponseDto;
 import com.example.inquiry.application.usecase.GetRegionsUseCase;
 import com.example.inquiry.application.usecase.SearchInquiryDestinationsUseCase;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,14 +26,14 @@ public class InquiryDestinationController {
     private final GetRegionsUseCase getRegionsUseCase;
     
     /**
-     * Get all regions
-     * 地域一覧取得
+     * Get all regions (all active regions including overseas)
+     * 地域一覧取得（海外を含む全ての有効な地域）
      * 
      * @return List of regions
      */
     @GetMapping("/regions")
     public ResponseEntity<List<RegionResponseDto>> getRegions() {
-        List<RegionResponseDto> regions = getRegionsUseCase.execute();
+        List<RegionResponseDto> regions = getRegionsUseCase.executeAll();
         return ResponseEntity.ok(regions);
     }
     
@@ -45,7 +46,7 @@ public class InquiryDestinationController {
      */
     @PostMapping("/search")
     public ResponseEntity<InquirySearchResponseDto> searchInquiryDestinations(
-            @RequestBody InquirySearchRequestDto request
+            @Valid @RequestBody InquirySearchRequestDto request
     ) {
         InquirySearchResponseDto response = searchInquiryDestinationsUseCase.execute(request);
         return ResponseEntity.ok(response);

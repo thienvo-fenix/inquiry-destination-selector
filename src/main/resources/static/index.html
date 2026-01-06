@@ -289,22 +289,22 @@
             <div class="accordion-content" id="accordionContent">
                 <div class="form-group">
                     <label for="txtRefNm">問合せ先名称</label>
-                    <input type="text" id="txtRefNm" placeholder="前方一致検索">
+                    <input type="text" id="txtRefNm" maxlength="100" placeholder="前方一致検索">
                 </div>
                 
                 <div class="form-group">
                     <label for="txtRefKn">問合せ先名称カナ</label>
-                    <input type="text" id="txtRefKn" placeholder="前方一致検索">
+                    <input type="text" id="txtRefKn" maxlength="200" placeholder="前方一致検索">
                 </div>
                 
                 <div class="form-group">
                     <label for="telno">電話番号</label>
-                    <input type="text" id="telno" placeholder="前方一致検索">
+                    <input type="text" id="telno" maxlength="13" placeholder="前方一致検索">
                 </div>
                 
                 <div class="form-group">
                     <label for="urlAheadSearch">URL</label>
-                    <input type="text" id="urlAheadSearch" placeholder="部分一致検索">
+                    <input type="text" id="urlAheadSearch" maxlength="256" placeholder="部分一致検索">
                 </div>
                 
                 <div class="form-group">
@@ -374,9 +374,16 @@
         const MAX_DISPLAY_RECORDS = 40;
         const CONFIRM_THRESHOLD = 80;
         
-        // Initialize page
+        // Initialize page (初期表示処理)
         document.addEventListener('DOMContentLoaded', async () => {
+            // (1) Load Core regions from 地域M table
+            // - 用途区分 = Core地域
+            // - 削除フラグ = false
+            // - 表示順でソート
             await loadRegions();
+            
+            // (2) Initialize screen according to "Screen field definition"
+            initializeScreen();
             
             // Check if this is bulk selection mode
             const urlParams = new URLSearchParams(window.location.search);
@@ -386,44 +393,95 @@
             }
         });
         
-        // Load regions
+        // Initialize screen to default state (画面初期化)
+        function initializeScreen() {
+            // Clear all text inputs
+            document.getElementById('txtRefNm').value = '';
+            document.getElementById('txtRefKn').value = '';
+            document.getElementById('telno').value = '';
+            document.getElementById('urlAheadSearch').value = '';
+            
+            // Reset record count
+            document.getElementById('recordCount').textContent = 'レコード件数: 0件';
+            
+            // Reset results table
+            document.getElementById('resultsBody').innerHTML = 
+                '<tr><td colspan="8" class="loading">検索ボタンをクリックしてください</td></tr>';
+            
+            // Reset select all checkbox
+            document.getElementById('selectAll').checked = false;
+            
+            // Disable confirm button
+            document.getElementById('confirmBtn').disabled = true;
+            
+            // Clear any error messages
+            clearAllErrors();
+        }
+        
+        // 海外地域コード
+        const OVERSEAS_REGION_CODE = '99';
+        
+        // Load regions (全ての有効な地域を読み込み)
         async function loadRegions() {
             try {
                 const response = await fetch(`${API_BASE_URL}/regions`);
                 regions = await response.json();
                 
                 const container = document.getElementById('regionCheckboxes');
-                container.innerHTML = regions.map(region => `
+                // 初期値：「海外」以外の全項目のチェックボックスON
+                container.innerHTML = regions.map(region => {
+                    const isOverseas = region.regionCode === OVERSEAS_REGION_CODE;
+                    const isChecked = !isOverseas; // 海外以外はチェックON
+                    return `
                     <div class="checkbox-item">
                         <input type="checkbox" 
                                id="region_${region.regionCode}" 
                                value="${region.regionCode}"
-                               ${region.regionCode !== '99' ? 'checked' : ''}
+                               ${isChecked ? 'checked' : ''}
                                onchange="handleRegionChange('${region.regionCode}')">
                         <label for="region_${region.regionCode}">${region.regionName}</label>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             } catch (error) {
                 console.error('Error loading regions:', error);
+                // Show error message in region checkboxes area
+                const container = document.getElementById('regionCheckboxes');
+                container.innerHTML = '<span class="error-message">地域データの読み込みに失敗しました</span>';
             }
         }
         
-        // Handle region checkbox change
+        // Handle region checkbox change - mutual exclusion logic
+        // 「海外」がチェックされた場合、その他の地域のチェックを全てはずす
+        // 「海外」以外がチェックされた場合、「海外」のチェックをはずす
         function handleRegionChange(regionCode) {
-            if (regionCode === '99') {
-                // If overseas is checked, uncheck all others
-                const checkbox = document.getElementById('region_99');
-                if (checkbox.checked) {
+            const clickedCheckbox = document.getElementById(`region_${regionCode}`);
+            
+            if (regionCode === OVERSEAS_REGION_CODE) {
+                // 海外がチェックされた場合
+                if (clickedCheckbox.checked) {
+                    // その他の地域のチェックを全てはずす
                     regions.forEach(region => {
-                        if (region.regionCode !== '99') {
-                            document.getElementById(`region_${region.regionCode}`).checked = false;
+                        if (region.regionCode !== OVERSEAS_REGION_CODE) {
+                            const checkbox = document.getElementById(`region_${region.regionCode}`);
+                            if (checkbox) {
+                                checkbox.checked = false;
+                            }
                         }
                     });
                 }
             } else {
-                // If any other region is checked, uncheck overseas
-                document.getElementById('region_99').checked = false;
+                // 海外以外がチェックされた場合
+                if (clickedCheckbox.checked) {
+                    // 海外のチェックをはずす
+                    const overseasCheckbox = document.getElementById(`region_${OVERSEAS_REGION_CODE}`);
+                    if (overseasCheckbox) {
+                        overseasCheckbox.checked = false;
+                    }
+                }
             }
+            
+            // Update confirm button state when region selection changes
             updateConfirmButton();
         }
         
@@ -445,41 +503,66 @@
             // Clear error messages
             clearAllErrors();
             
-            // Reset region checkboxes
+            // Reset region checkboxes - 初期値：「海外」以外の全項目のチェックボックスON
             regions.forEach(region => {
                 const checkbox = document.getElementById(`region_${region.regionCode}`);
-                checkbox.checked = region.regionCode !== '99';
+                if (checkbox) {
+                    const isOverseas = region.regionCode === OVERSEAS_REGION_CODE;
+                    checkbox.checked = !isOverseas; // 海外以外はチェックON
+                }
             });
         }
         
         // Validation functions
+        // 検索条件入力領域の入力チェック
         function validateInput() {
             clearAllErrors();
             let isValid = true;
             let firstErrorField = null;
             
-            // Validate 問合せ先名称 (check for invalid characters if needed)
+            // Validate 問合せ先名称 (文字種: 全角半角, 桁数: 最大100桁)
             const txtRefNm = document.getElementById('txtRefNm');
-            if (txtRefNm.value && !isValidSearchText(txtRefNm.value)) {
-                showFieldError(txtRefNm, '問合せ先名称に無効な文字が含まれています。');
+            if (txtRefNm.value && txtRefNm.value.length > 100) {
+                showFieldError(txtRefNm, '問合せ先名称は100文字以内で入力してください。');
                 isValid = false;
                 if (!firstErrorField) firstErrorField = txtRefNm;
             }
             
-            // Validate 問合せ先名称カナ (should be katakana only)
+            // Validate 問合せ先名称カナ (文字種: 全角半角, 桁数: 最大200桁)
             const txtRefKn = document.getElementById('txtRefKn');
-            if (txtRefKn.value && !isValidKana(txtRefKn.value)) {
-                showFieldError(txtRefKn, '問合せ先名称カナはカタカナで入力してください。');
+            if (txtRefKn.value && txtRefKn.value.length > 200) {
+                showFieldError(txtRefKn, '問合せ先名称カナは200文字以内で入力してください。');
                 isValid = false;
                 if (!firstErrorField) firstErrorField = txtRefKn;
             }
             
-            // Validate 電話番号 (should be numeric and hyphens only)
+            // Validate 電話番号 (文字種: 半角, 桁数: 最大13桁)
             const telno = document.getElementById('telno');
-            if (telno.value && !isValidPhoneNumber(telno.value)) {
-                showFieldError(telno, '電話番号は数字とハイフンのみで入力してください。');
-                isValid = false;
-                if (!firstErrorField) firstErrorField = telno;
+            if (telno.value) {
+                // 半角数字とハイフンのみ許可
+                if (!isValidPhoneNumber(telno.value)) {
+                    showFieldError(telno, '電話番号は半角数字とハイフンのみで入力してください。');
+                    isValid = false;
+                    if (!firstErrorField) firstErrorField = telno;
+                } else if (telno.value.length > 13) {
+                    showFieldError(telno, '電話番号は13文字以内で入力してください。');
+                    isValid = false;
+                    if (!firstErrorField) firstErrorField = telno;
+                }
+            }
+            
+            // Validate URL (文字種: 半角, 桁数: 最大256桁)
+            const urlAheadSearch = document.getElementById('urlAheadSearch');
+            if (urlAheadSearch.value) {
+                if (!isHalfWidth(urlAheadSearch.value)) {
+                    showFieldError(urlAheadSearch, 'URLは半角で入力してください。');
+                    isValid = false;
+                    if (!firstErrorField) firstErrorField = urlAheadSearch;
+                } else if (urlAheadSearch.value.length > 256) {
+                    showFieldError(urlAheadSearch, 'URLは256文字以内で入力してください。');
+                    isValid = false;
+                    if (!firstErrorField) firstErrorField = urlAheadSearch;
+                }
             }
             
             // Focus on first error field
@@ -490,19 +573,15 @@
             return isValid;
         }
         
-        function isValidSearchText(text) {
-            // Allow general text input - can be customized based on requirements
-            return text.length <= 100; // Max length check
-        }
-        
-        function isValidKana(text) {
-            // Allow katakana, spaces, and common punctuation
-            const kanaRegex = /^[ァ-ヶー・　\s]*$/;
-            return kanaRegex.test(text);
+        // 半角文字チェック
+        function isHalfWidth(text) {
+            // 半角英数字と一般的な記号のみ許可
+            const halfWidthRegex = /^[\x20-\x7E]*$/;
+            return halfWidthRegex.test(text);
         }
         
         function isValidPhoneNumber(text) {
-            // Allow numbers and hyphens
+            // 半角数字とハイフンのみ許可
             const phoneRegex = /^[0-9\-]*$/;
             return phoneRegex.test(text);
         }
@@ -561,6 +640,37 @@
                     },
                     body: JSON.stringify(requestData)
                 });
+                
+                // Handle backend validation errors
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    if (errorData.errors && errorData.errors.length > 0) {
+                        // Display backend validation errors
+                        clearAllErrors();
+                        let firstErrorField = null;
+                        
+                        errorData.errors.forEach(err => {
+                            const fieldMapping = {
+                                'inquiryDestinationName': 'txtRefNm',
+                                'inquiryDestinationKana': 'txtRefKn',
+                                'phoneNumber': 'telno',
+                                'urlAddress': 'urlAheadSearch'
+                            };
+                            const fieldId = fieldMapping[err.field];
+                            if (fieldId) {
+                                const field = document.getElementById(fieldId);
+                                if (field) {
+                                    showFieldError(field, err.message);
+                                    if (!firstErrorField) firstErrorField = field;
+                                }
+                            }
+                        });
+                        
+                        if (firstErrorField) firstErrorField.focus();
+                        tbody.innerHTML = '<tr><td colspan="8" class="loading">検索ボタンをクリックしてください</td></tr>';
+                        return;
+                    }
+                }
                 
                 const data = await response.json();
                 const totalCount = data.totalCount || 0;
@@ -670,42 +780,79 @@
             displayResults(currentResults);
         }
         
-        // Cancel selection
+        // Cancel selection - đóng thanh trượt bên phải
         function cancelSelection() {
-            if (confirm('選択をキャンセルしますか？')) {
+            // Gửi message để parent window đóng slider
+            if (window.parent !== window) {
+                // Đang mở trong iframe/slider
+                window.parent.postMessage({ 
+                    type: 'INQUIRY_DESTINATION_CANCEL',
+                    action: 'close_slider'
+                }, '*');
+            } else if (window.opener) {
+                // Đang mở dưới dạng popup window
+                window.opener.postMessage({ 
+                    type: 'INQUIRY_DESTINATION_CANCEL',
+                    action: 'close_slider'
+                }, '*');
+                window.close();
+            } else {
+                // Fallback: đóng window trực tiếp
                 window.close();
             }
         }
         
-        // Confirm selection
+        // Confirm selection - 決定ボタン処理
         function confirmSelection() {
             const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
             const selectedCodes = Array.from(checkedBoxes).map(cb => cb.value);
             
-            // Step 5(1): Validate selection count - if not bulk mode, only 1 item allowed
+            // (1) 選択された値の妥当性チェック
+            // A. 問合せ先一括追加ボタンから開かれた場合、または
+            //    問合せ先パターン指定画面の一括追加機能以外から開かれた場合に
+            //    複数選択されていたらエラー (SE4102_00166)
+            // isBulkMode = true の場合のみ複数選択可能
             if (!isBulkMode && selectedCodes.length > 1) {
                 alert(MESSAGES.SE4102_00166);
                 return;
             }
             
+            // 選択された問合せ先の全データを取得
             const selectedItems = currentResults.filter(item => 
                 selectedCodes.includes(item.inquiryDestinationCode)
             );
             
             console.log('Selected items:', selectedItems);
             
-            // Step 5(2): Send data back to parent window
-            if (window.opener) {
-                window.opener.postMessage({ 
-                    type: 'INQUIRY_DESTINATION_SELECTED',
-                    selectedItems: selectedItems 
-                }, '*');
+            // (2) 選択した問合せ先レコードの全データを前画面に渡す
+            const messageData = { 
+                type: 'INQUIRY_DESTINATION_SELECTED',
+                selectedItems: selectedItems,
+                isBulkSelection: isBulkMode
+            };
+            
+            if (window.parent !== window) {
+                // iframe/slider から開かれた場合
+                window.parent.postMessage(messageData, '*');
+            } else if (window.opener) {
+                // popup window から開かれた場合
+                window.opener.postMessage(messageData, '*');
             }
             
-            alert(`${selectedItems.length}件の問合せ先を選択しました`);
-            
-            // Step 5(3): Close the panel/window
-            window.close();
+            // (3) 右スライダーを閉じる
+            if (window.parent !== window) {
+                // iframe/slider の場合、親にクローズを要求
+                window.parent.postMessage({ 
+                    type: 'INQUIRY_DESTINATION_CLOSE_SLIDER',
+                    action: 'close_slider'
+                }, '*');
+            } else if (window.opener) {
+                // popup window の場合
+                window.close();
+            } else {
+                // Fallback
+                window.close();
+            }
         }
     </script>
 </body>
